@@ -2,7 +2,9 @@
 STK500 (Arduino version) protocol support for Arduino.
 
 Useful for flashing one Arduino (target) from another (host).
+
 Originally from BootDrive, which is BaldWisdom's port of avrdude (https://github.com/osbock/Baldwisdom/tree/master/BootDrive).  I added modifications so this works from an ESP8266 host via the Arduino platform.
+
 This should work to flash any target that is running Optiboot, but only Arduino Uno (JeeNode, 16MHz @ 3.3v) and Arduino Pro Mini (8MHz @ 3.3v) targets have been tested.
 
 ## Usage
