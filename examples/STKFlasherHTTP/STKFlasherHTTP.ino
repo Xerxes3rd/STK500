@@ -36,8 +36,8 @@
 #define FLASHBAUD 115200
 #define DBG_OUTPUT_PORT Serial1
 
-const char* ssid = "---";
-const char* password = "---";
+const char* ssid = "";
+const char* password = "";
 const char* host = "STKFlasherHTTP";
 
 ESP8266WebServer server(80);
@@ -203,10 +203,15 @@ void setup(void){
   }
   
   //WIFI INIT
-  DBG_OUTPUT_PORT.printf("Connecting to %s\n", ssid);
-  if (String(WiFi.SSID()) != String(ssid)) {
+  if ((String(WiFi.SSID()) != String(ssid)) && (String(ssid).length() > 0)) {
+    DBG_OUTPUT_PORT.printf("Connecting to %s\n", ssid);
     WiFi.begin(ssid, password);
   }
+  else {
+    DBG_OUTPUT_PORT.printf("Connecting to stored SSID %s\n", WiFi.SSID().c_str());
+    WiFi.begin();
+  }
+  
 
   //SERVER INIT
   //list directory
