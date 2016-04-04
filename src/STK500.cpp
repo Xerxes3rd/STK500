@@ -26,7 +26,6 @@
 		#define DEBUGPLN Serial1.println
 		#define DEBUGP Serial1.print
 	#else
-		#include <SoftwareSerial.h>
 		SoftwareSerial *sSerial;
 		#define DEBUGPLN sSerial->println
 		#define DEBUGP sSerial->print
@@ -51,39 +50,53 @@ STK500::STK500(int RstPin, int LEDPin)
 	setup();
 }
 
+#ifndef __XTENSA__
+STK500::STK500(SoftwareSerial* softSer, int RstPin, int LEDPin)
+{
+	txPin = -1;
+	rxPin = -1;
+	rstPin = RstPin;
+	LED1 = LEDPin;
+	softSerial = softSer;
+	setup();
+}
+#endif
+
 // Returns true for success
 bool STK500::programArduino(int baud = DEFAULT_BAUD){
   Serial.begin(baud);
   digitalWrite(rstPin,HIGH);
-
+  
   unsigned int major=0;
   unsigned int minor=0;
   int syncCode = 0;
   //delay(100);
-  DEBUGPLN("reset");
+  //DEBUGPLN("reset");
   toggle_Reset();
-  DEBUGPLN("getsync");
+  //DEBUGPLN("getsync");
   delay(500);
+  //delay(100);
   syncCode = STK500_getsync();
   
   if (syncCode!=0)
   {
-	  DEBUGPLN("Error: no sync");
+	  DEBUGPLN(F("Err:nosync"));
 	  return false;
   }
-  DEBUGPLN("SYNCOK");
+  //DEBUGPLN("SYNCOK");
   //Serial.setTimeout(100);
   //DEBUGPLN("Sync success");
   STK500_getparm(Parm_STK_SW_MAJOR, &major);
-  DEBUGP("software major: ");
+  DEBUGP(F("s_maj: "));
   DEBUGPLN(major);
   STK500_getparm(Parm_STK_SW_MINOR, &minor);
-  DEBUGP("software Minor: ");
+  DEBUGP(F("s_min: "));
   DEBUGPLN(minor);
   
   if (!major && !minor)
   {
-	  DEBUGPLN("Error: no major and minor");
+	  //DEBUGPLN("Error: no major and minor");
+	  DEBUGPLN(F("Err ver"));
 	  return false;
   }
   
@@ -99,7 +112,7 @@ bool STK500::programArduino(int baud = DEFAULT_BAUD){
 	yield();
 	#endif
 
-  DEBUGP("Sending flash data...");
+  DEBUGP(F("Flashing..."));
   int size = 0;
   
   while (readPage(&mybuf) > 0){
@@ -122,10 +135,10 @@ bool STK500::programArduino(int baud = DEFAULT_BAUD){
   yield();
   #endif
   //return true;
-  DEBUGPLN("done.");
-  DEBUGP("Wrote ");
-  DEBUGP(size);
-  DEBUGPLN(" bytes to flash.");
+  DEBUGPLN(F("done."));
+  //DEBUGP("Wrote ");
+  //DEBUGP(size);
+  //DEBUGPLN(" bytes to flash.");
 
   // could verify programming by reading back pages and comparing but for now, close out
   STK500_disable();
@@ -144,7 +157,10 @@ void STK500::setup() {
 	#ifdef __XTENSA__
 	Serial1.begin(DEBUG_BAUD);
 	#else
-    if ((txPin >= 0) && (rxPin >=0))
+	if (softSerial != NULL) {
+		sSerial = softSerial;
+	}
+    else if ((txPin >= 0) && (rxPin >=0) && (sSerial == NULL))
 	{
 		pinMode(rxPin, INPUT);
 		pinMode(txPin, OUTPUT);
@@ -198,24 +214,24 @@ void STK500::toggle_Reset()
 }
 
 //original avrdude error messages get copied to ram and overflow, wo use numeric codes.
-void STK500::error1(int errno,unsigned char detail){
-  DEBUGP("error: ");
+static void error1(int errno,unsigned char detail){
+  DEBUGP(F("error: "));
   DEBUGP(errno);
-  DEBUGP(" detail: 0x");
+  DEBUGP(F(" detail: 0x"));
   DEBUGPLN(detail,HEX);
 }
 
-void STK500::error(int errno){
-  DEBUGP("error" );
+static void error(int errno){
+  DEBUGP(F("error" ));
   DEBUGPLN(errno);
 }
 
-int STK500::STK500_send(byte *buf, unsigned int len)
+static int STK500_send(byte *buf, unsigned int len)
 {
   Serial.write(buf,len);
 }
 
-int STK500::STK500_recv(byte * buf, unsigned int len)
+static int STK500_recv(byte * buf, unsigned int len)
 {
   int rv;
   
@@ -228,7 +244,7 @@ int STK500::STK500_recv(byte * buf, unsigned int len)
   return rv;
 }
 
-int STK500::STK500_drain()
+static int STK500_drain()
 {
 	
   byte buf[2];
@@ -238,7 +254,7 @@ int STK500::STK500_drain()
   
   if (rv > 0)
   {
-	  DEBUGPLN("drained bytes");
+	  //DEBUGPLN("drained bytes");
   }
   
   Serial.setTimeout(1000);
@@ -255,7 +271,7 @@ int STK500::STK500_drain()
 
 int STK500::STK500_getsync()
 {
-  byte buf[32], resp[32];
+  byte buf[8], resp[8];
 
   /*
    * get in sync */
@@ -302,17 +318,17 @@ int STK500::STK500_getsync()
   return 0;
   */
   
-  DEBUGPLN("SEND SYNC");
+  //DEBUGPLN("SEND SYNC");
   STK500_send(buf, 2);
   //delay(100);
   STK500_drain();
   //delay(100);
-  DEBUGPLN("SEND SYNC");
+  //DEBUGPLN("SEND SYNC");
   STK500_send(buf, 2);
   //delay(100);
   STK500_drain();
   //delay(100);
-  DEBUGPLN("SEND SYNC");
+  //DEBUGPLN("SEND SYNC");
   STK500_send(buf, 2);
   //delay(100);
   
@@ -338,7 +354,7 @@ int STK500::STK500_getsync()
 
 int STK500::STK500_getparm(unsigned parm, unsigned * value)
 {
-  byte buf[16];
+  byte buf[8];
   unsigned v;
   int tries = 0;
 
@@ -357,7 +373,7 @@ int STK500::STK500_getparm(unsigned parm, unsigned * value)
   if (buf[0] == Resp_STK_NOSYNC) {
     if (tries > 33) {
       error(ERRORNOSYNC);
-	  DEBUGPLN("Too many tries");
+	  //DEBUGPLN("Too many tries");
       return -1;
     }
     if (STK500_getsync() < 0) {
@@ -372,7 +388,7 @@ int STK500::STK500_getparm(unsigned parm, unsigned * value)
     //return -2;
 	if (tries > 33)
 	{
-		DEBUGPLN("TOO MANY TRIES");
+		//DEBUGPLN("TOO MANY TRIES");
 		return -1;
 	}
 	goto retry;
@@ -405,12 +421,12 @@ int STK500::STK500_getparm(unsigned parm, unsigned * value)
 /* read signature bytes - arduino version */
 int STK500::arduino_read_sig_bytes(AVRMEM * m)
 {
-  unsigned char buf[32];
+  unsigned char buf[8];
 
   /* Signature byte reads are always 3 bytes. */
 
   if (m->size < 3) {
-    DEBUGPLN("memsize too small for sig byte read");
+    //DEBUGPLN("memsize too small for sig byte read");
     return -1;
   }
 
@@ -442,7 +458,7 @@ int STK500::arduino_read_sig_bytes(AVRMEM * m)
 
 int STK500::STK500_loadaddr(unsigned int addr)
 {
-  unsigned char buf[16];
+  unsigned char buf[8];
   int tries;
 
   tries = 0;
@@ -627,7 +643,7 @@ static int STK500_paged_load(AVRMEM * m, int page_size, int n_bytes)
  */
 int STK500::STK500_program_enable()
 {
-  unsigned char buf[16];
+  unsigned char buf[8];
   int tries=0;
 
  retry:
@@ -678,7 +694,7 @@ int STK500::STK500_program_enable()
 
 void STK500::STK500_disable()
 {
-  unsigned char buf[16];
+  unsigned char buf[8];
   int tries=0;
 
  retry:
@@ -726,7 +742,8 @@ void dumphex(unsigned char *buf,int len)
   {
     if (i%16 == 0)
       DEBUGPLN();
-    DEBUGP(buf[i],HEX);DEBUGP(" ");
+    DEBUGP(buf[i],HEX);
+	DEBUGP(" ");
   }
   DEBUGPLN();
 }

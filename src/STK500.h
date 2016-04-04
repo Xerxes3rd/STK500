@@ -12,11 +12,11 @@
 #ifndef STK500_H
 #define STK500_H
 
-#ifdef __XTENSA__
-#include "FS.h"
-#else
-#include <SD.h>
+#ifndef __XTENSA__
+	#include <SoftwareSerial.h>
 #endif
+
+#include <Arduino.h>
 
 // *****************[ STK Message constants ]***************************
 
@@ -133,6 +133,10 @@ class STK500
 	public:
 		STK500(int TxPin, int RxPin, int RstPin, int LEDPin);
 		STK500(int RstPin, int LEDPin);
+#ifndef __XTENSA__
+		STK500(SoftwareSerial* softSer, int RstPin, int LEDPin);
+		SoftwareSerial *softSerial;
+#endif
 		
 	protected:
 		bool programArduino(int baud);
@@ -141,11 +145,11 @@ class STK500
 		unsigned char hex2byte(unsigned char *code);
 		void blinky(int times, long delaytime);
 		void toggle_Reset();
-		void error1(int errno,unsigned char detail);
-		void error(int errno);
-		int STK500_send(byte *buf, unsigned int len);
-		int STK500_recv(byte * buf, unsigned int len);
-		int STK500_drain();
+		//void error1(int errno,unsigned char detail);
+		//void error(int errno);
+		//int STK500_send(byte *buf, unsigned int len);
+		//int STK500_recv(byte * buf, unsigned int len);
+		//int STK500_drain();
 		int STK500_getsync();
 		int STK500_getparm(unsigned parm, unsigned * value);
 		int arduino_read_sig_bytes(AVRMEM * m);

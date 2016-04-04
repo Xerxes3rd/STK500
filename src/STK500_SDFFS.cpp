@@ -1,8 +1,8 @@
 #include "STK500_SDFFS.h"
 
-bool STK500_SDFFS::ProgramArduino(File input, int baud)
+bool STK500_SDFFS::ProgramArduino(File* input, int baud)
 {
-	myFile = &input;
+	myFile = input;
 	return programArduino(baud);
 	myFile = NULL;
 }
@@ -17,7 +17,7 @@ int STK500_SDFFS::readPage(avrmem *buf)
   // grab 128 bytes or less (one page)
   while (total_len < (128 - 15)) {
   //for (int i=0 ; i < 8; i++){
-    len = readIntelHexLine(*myFile, &address, &linemembuffer[0]);
+    len = readIntelHexLine(myFile, &address, &linemembuffer[0]);
 	//DEBUGP("addr ");
 	//DEBUGP(address, HEX);
 	//DEBUGP(" len ");
@@ -49,13 +49,13 @@ int STK500_SDFFS::readPage(avrmem *buf)
 
 // INTEL HEX FORMAT:
 // :<8-bit record size><16bit address><8bit record type><data...><8bit checksum>
-int STK500_SDFFS::readIntelHexLine(File input, int *address, unsigned char *buf){
+int STK500_SDFFS::readIntelHexLine(File* input, int *address, unsigned char *buf){
   unsigned char c;
   int i=0;
   linebuffer[0] = 0;
   while (true){
-    if (input.available()){
-      c = input.read();
+    if (input->available()){
+      c = input->read();
       // this should handle unix or ms-dos line endings.
       // break out when you reach either, then check
       // for lf in stream to discard
@@ -68,8 +68,8 @@ int STK500_SDFFS::readIntelHexLine(File input, int *address, unsigned char *buf)
   }
   linebuffer[i]= 0; // terminate the string
   //peek at the next byte and discard if line ending char.
-  if (input.peek() == 0xa)
-    input.read();
+  if (input->peek() == 0xa)
+    input->read();
   
   if (linebuffer[0] == ':')
   {
